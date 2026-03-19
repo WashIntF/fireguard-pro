@@ -398,7 +398,7 @@
     <div class="panel" id="panel-photos">
       <div class="card">
         <div class="card-header"><div class="card-title">Inspection Photos</div><div class="card-badge badge-blue" id="photo-count">0 Photos</div></div>
-        <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Add photos of the system, devices, or deficiencies. Each photo can have a caption.</p>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Photos are automatically compressed to ~150–400 KB each (max 1200px, JPEG 82%) to stay within email size limits. Each photo can have a caption.</p>
         <div class="photo-grid" id="photo-grid">
           <div class="photo-upload-btn" onclick="document.getElementById('photo-input').click()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 16l4-4 4 4 4-6 4 6"/><rect x="2" y="3" width="20" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/></svg>Add Photo
@@ -828,15 +828,81 @@ function addManualDeficiency(){
 // ══════════════════════════════════════════════════
 // PHOTOS
 // ══════════════════════════════════════════════════
+// ── PHOTO COMPRESSION ─────────────────────────────
+// Resizes and compresses each photo using an offscreen
+// canvas before storing it. Targets max 1200px on the
+// long edge at 82% JPEG quality — roughly 150–400KB per
+// photo, well within email attachment limits.
+const PHOTO_MAX_PX  = 1200;   // max long-edge pixels
+const PHOTO_QUALITY = 0.82;   // JPEG quality (0–1)
+
+function compressImage(file){
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      const img = new Image();
+      img.onload = ()=>{
+        // Calculate new dimensions keeping aspect ratio
+        let w = img.width, h = img.height;
+        if(w > PHOTO_MAX_PX || h > PHOTO_MAX_PX){
+          if(w >= h){ h = Math.round(h * PHOTO_MAX_PX / w); w = PHOTO_MAX_PX; }
+          else       { w = Math.round(w * PHOTO_MAX_PX / h); h = PHOTO_MAX_PX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function handlePhotos(e){
-  Array.from(e.target.files).forEach(f=>{const r=new FileReader();r.onload=ev=>{photos.push({src:ev.target.result,caption:''});renderPhotos();};r.readAsDataURL(f);});
+  const files = Array.from(e.target.files);
+  files.forEach(async f=>{
+    const compressed = await compressImage(f);
+    photos.push({src: compressed, caption:''});
+    renderPhotos();
+  });
   e.target.value='';
 }
+
+function getPhotosSizeKB(){
+  return photos.reduce((sum,p)=> sum + Math.round(p.src.length * 0.75 / 1024), 0);
+}
+
 function renderPhotos(){
-  const grid=document.getElementById('photo-grid');
-  document.getElementById('photo-count').textContent=photos.length+' Photos';
-  grid.innerHTML=photos.map((p,i)=>`<div class="photo-item"><img src="${p.src}"><button class="photo-remove" onclick="removePhoto(${i})">✕</button><input class="photo-cap" type="text" placeholder="Caption..." value="${esc(p.caption)}" oninput="photos[${i}].caption=this.value"></div>`).join('')+
-    `<div class="photo-upload-btn" onclick="document.getElementById('photo-input').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 16l4-4 4 4 4-6 4 6"/><rect x="2" y="3" width="20" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/></svg>Add Photo</div>`;
+  const grid = document.getElementById('photo-grid');
+  const totalKB = getPhotosSizeKB();
+  const totalLabel = totalKB > 1024
+    ? (totalKB/1024).toFixed(1)+' MB'
+    : totalKB+' KB';
+  const sizeColor = totalKB > 8192 ? 'var(--red)' : totalKB > 4096 ? 'var(--orange)' : 'var(--green)';
+  document.getElementById('photo-count').textContent = photos.length+' Photos';
+  // Update size indicator
+  let sizeEl = document.getElementById('photo-size-indicator');
+  if(!sizeEl){
+    sizeEl = document.createElement('span');
+    sizeEl.id = 'photo-size-indicator';
+    sizeEl.style.cssText = 'font-size:11px;font-family:\'IBM Plex Mono\',monospace;margin-left:8px;';
+    const hdr = document.querySelector('#panel-photos .card-header');
+    if(hdr) hdr.appendChild(sizeEl);
+  }
+  sizeEl.style.color = sizeColor;
+  sizeEl.textContent = photos.length > 0 ? '~'+totalLabel+' total' : '';
+
+  grid.innerHTML = photos.map((p,i)=>`
+    <div class="photo-item">
+      <img src="${p.src}">
+      <button class="photo-remove" onclick="removePhoto(${i})">✕</button>
+      <input class="photo-cap" type="text" placeholder="Caption..." value="${esc(p.caption)}" oninput="photos[${i}].caption=this.value">
+    </div>`).join('') +
+    `<div class="photo-upload-btn" onclick="document.getElementById('photo-input').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 16l4-4 4 4 4-6 4 6"/><rect x="2" y="3" width="20" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/></svg>
+      Add Photo
+    </div>`;
 }
 function removePhoto(i){photos.splice(i,1);renderPhotos();}
 
