@@ -1,0 +1,35 @@
+{
+  "name": "FireGuard Pro — NFPA 72 Inspection",
+  "short_name": "FireGuard Pro",
+  "description": "NFPA 72 Fire Alarm Inspection Reports for Android and PC",
+  "start_url": "./fire_alarm_inspection.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111214",
+  "theme_color": "#e63329",
+  "orientation": "portrait",
+  "lang": "en-US",
+  "categories": ["business", "utilities"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%23111214'/%3E%3Cpath d='M256 60C256 60 160 160 160 290a96 96 0 00192 0c0-130-96-230-96-230z' fill='%23e63329'/%3E%3Cpath d='M256 180c0 0-52 52-52 110a52 52 0 00104 0C308 232 256 180 256 180z' fill='%23f07c28'/%3E%3Ccircle cx='256' cy='318' r='26' fill='%23ffffff'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
