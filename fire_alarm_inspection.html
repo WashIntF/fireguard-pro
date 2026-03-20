@@ -13,8 +13,6 @@
 <title>FireGuard Pro — NFPA 72 Inspection</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" onload="onGsiLoad()"></script>
-<script src="https://apis.google.com/js/api.js" onload="onGapiLoad()"></script>
 <style>
   :root {
     --red:#e63329; --red-dark:#b8271e; --red-glow:rgba(230,51,41,0.18);
@@ -131,9 +129,6 @@
   /* SETTINGS */
   .settings-section{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;margin-top:16px;}
   .settings-section:first-child{margin-top:0;}
-  /* DRIVE FILE LIST */
-  .report-item{display:flex;flex-direction:column;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all 0.18s;}
-  .report-item:hover{border-color:var(--red);background:var(--bg4);}
 
   /* AHJ TAG */
   .badge-purple{background:#7c5cbf;}
@@ -236,8 +231,6 @@
       </div>
     </div>
     <div id="header-actions">
-      <button class="btn btn-secondary btn-sm" onclick="driveSignIn()" id="btn-drive-save" title="Save to Google Drive">☁ Save</button>
-      <button class="btn btn-secondary btn-sm" onclick="driveLoad()" id="btn-drive-load" title="Load from Google Drive">☁ Load</button>
       <button class="btn btn-secondary btn-sm" onclick="openSettingsModal()" title="Inspector Settings">⚙️</button>
     </div>
   </div>
@@ -501,17 +494,6 @@
 
 <!-- PRINT DOC (off-screen, not display:none — html2canvas needs it visible) -->
 <div id="print-doc" style="position:fixed;left:-9999px;top:0;width:816px;background:#fff;z-index:-1;pointer-events:none;"></div>
-
-<!-- GOOGLE DRIVE MODAL -->
-<div class="modal-overlay hidden" id="drive-modal">
-  <div class="modal" style="max-width:380px;text-align:center;">
-    <div class="modal-title" style="justify-content:center;">☁ Google Drive</div>
-    <div id="drive-status-icon" style="font-size:36px;margin-bottom:10px;">⏳</div>
-    <div id="drive-status-msg" style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.5;">Connecting…</div>
-    <div id="drive-file-list" class="hidden" style="text-align:left;margin-bottom:14px;max-height:240px;overflow-y:auto;"></div>
-    <button class="btn btn-secondary" onclick="closeDriveModal()" style="width:100%;">Close</button>
-  </div>
-</div>
 
 <!-- Hidden QR code renderer -->
 <div id="print-qr-wrap" style="position:absolute;left:-9999px;top:-9999px;"><div id="qr-render"></div></div>
@@ -1505,20 +1487,6 @@ async function generateQRDataURL(){
 }
 
 // ══════════════════════════════════════════════════
-// ALL FIELD IDs — used by Drive save and settings apply
-// ══════════════════════════════════════════════════
-const ALL_FIELDS = [
-  'customer-name','address','city','state','zip','contact','phone','cust-email',
-  'insp-date','insp-time','report-num','insp-type','weather','occupancy','last-insp',
-  'ahj-name','ahj-contact','ahj-phone','ahj-email','permit-num','permit-exp','ahj-notes',
-  'sys-type','panel-mfr','panel-model','panel-serial','panel-firmware','panel-year',
-  'monitoring-co','monitoring-acct','panel-location','bat-make','bat-ah','bat-date',
-  'insp-name','cert-num','company','license','company-addr',
-  'final-result','insp-comments','corrections','reinspection','ahj-notify',
-  'cust-sig-name','cust-sig-title','insp-sig-name','insp-sig-date'
-];
-
-// ══════════════════════════════════════════════════
 // LOAD (backward compat — restores any old localStorage save)
 // ══════════════════════════════════════════════════
 function loadReport(){
@@ -1584,234 +1552,8 @@ async function printReport(btn){
 }
 
 // ══════════════════════════════════════════════════
-// GOOGLE DRIVE INTEGRATION
+// TOAST
 // ══════════════════════════════════════════════════
-const DRIVE_CLIENT_ID = '651583783394-b7u4l56ffh34ek9nul5u8s2gql4ut6mi.apps.googleusercontent.com';
-const DRIVE_API_KEY   = 'AIzaSyAPsXZacoDo3Ru1EiXbNJ3p4Gw25v5JZ3o';
-const DRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.file';
-const DRIVE_FOLDER    = 'FireGuard Pro';
-
-let driveTokenClient = null, driveAccessToken = null, driveAction = null;
-let gapiReady = false, gsiReady = false;
-let pendingDriveAction = null; // queued if APIs not ready yet
-
-// Called by onload on the gsi script tag
-function onGsiLoad(){
-  try{
-    driveTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: DRIVE_CLIENT_ID,
-      scope: DRIVE_SCOPES,
-      callback: onDriveToken,
-      error_callback:(e)=>{
-        console.error('Drive token error:',e);
-        setDriveStatus('❌','Sign-in failed: '+(e.message||e.type||'Unknown error'));
-      }
-    });
-    gsiReady = true;
-    checkDrivePending();
-  }catch(e){ console.warn('GSI init error:',e); }
-}
-
-// Called by onload on the gapi script tag
-function onGapiLoad(){
-  gapi.load('client', ()=>{
-    gapi.client.init({
-      apiKey: DRIVE_API_KEY,
-      discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-    }).then(()=>{
-      gapiReady = true;
-      checkDrivePending();
-    }).catch(e=>{ console.warn('gapi client init:',e); gapiReady=true; checkDrivePending(); });
-  });
-}
-
-// If a Drive action was triggered before APIs loaded, run it now
-function checkDrivePending(){
-  if(!gapiReady || !gsiReady || !pendingDriveAction) return;
-  const action = pendingDriveAction;
-  pendingDriveAction = null;
-  action();
-}
-
-// Detect if running as local file — OAuth requires HTTPS
-function driveContextOK(){
-  const proto = window.location.protocol;
-  if(proto === 'file:' || proto === 'storagerelay:'){
-    openDriveModal();
-    setDriveStatus('⚠️',
-      'Google Drive requires the app to be opened from your GitHub Pages URL (https://...).\n\n' +
-      'You are currently running the app as a local file, which Google does not allow.\n\n' +
-      'Open the app from your GitHub Pages URL in Chrome, then try again.'
-    );
-    return false;
-  }
-  return true;
-}
-
-function onDriveToken(resp){
-  if(resp.error){ setDriveStatus('❌','Sign-in failed: '+resp.error+(resp.error_description?'\n'+resp.error_description:'')); return; }
-  driveAccessToken = resp.access_token;
-  if(driveAction==='save') doSaveToDrive();
-  else if(driveAction==='load') doLoadFromDrive();
-}
-
-function openDriveModal(){ document.getElementById('drive-modal').classList.remove('hidden'); }
-function closeDriveModal(){ document.getElementById('drive-modal').classList.add('hidden'); document.getElementById('drive-file-list').classList.add('hidden'); }
-function setDriveStatus(icon, msg){ document.getElementById('drive-status-icon').textContent=icon; document.getElementById('drive-status-msg').textContent=msg; }
-
-function driveSignIn(){
-  if(!driveContextOK()) return;
-  driveAction='save';
-  openDriveModal();
-  setDriveStatus('⏳','Connecting to Google Drive…');
-  document.getElementById('drive-file-list').classList.add('hidden');
-  if(gapiReady && gsiReady){
-    driveAccessToken ? doSaveToDrive() : requestDriveToken();
-  } else {
-    setDriveStatus('⏳','Loading Google APIs…');
-    pendingDriveAction = ()=>{ driveAccessToken ? doSaveToDrive() : requestDriveToken(); };
-  }
-}
-
-function driveLoad(){
-  if(!driveContextOK()) return;
-  driveAction='load';
-  openDriveModal();
-  setDriveStatus('⏳','Connecting to Google Drive…');
-  document.getElementById('drive-file-list').classList.add('hidden');
-  if(gapiReady && gsiReady){
-    driveAccessToken ? doLoadFromDrive() : requestDriveToken();
-  } else {
-    setDriveStatus('⏳','Loading Google APIs…');
-    pendingDriveAction = ()=>{ driveAccessToken ? doLoadFromDrive() : requestDriveToken(); };
-  }
-}
-
-function requestDriveToken(){
-  if(!driveTokenClient){ setDriveStatus('❌','Google Sign-In not initialised.\nPlease refresh the page and try again.'); return; }
-  driveTokenClient.requestAccessToken({ prompt: driveAccessToken ? '' : 'select_account' });
-}
-
-async function doSaveToDrive(){
-  setDriveStatus('⏳','Finding FireGuard Pro folder…');
-  try{
-    const folderId = await getOrCreateDriveFolder();
-    const facility = (gv('customer-name')||'Report').replace(/[^a-zA-Z0-9\s\-]/g,'').trim();
-    const date     = gv('insp-date') || new Date().toISOString().split('T')[0];
-    const filename = `${facility} — ${date}.fireguard`;
-    const fv={}; ALL_FIELDS.forEach(f=>{ const el=document.getElementById(f); if(el) fv[f]=el.value; });
-    const snapshot = JSON.stringify({ _version:2, _app:'FireGuard Pro', _savedAt:new Date().toISOString(),
-      fv, itemStatuses, itemNotes, manualDeficiencies, photos, devices, custSigData, inspSigData, companyLogoData });
-    setDriveStatus('⏳',`Saving "${filename}"…`);
-    const existing = await driveSearchFile(filename, folderId);
-    if(existing) await driveUpdateFile(existing, snapshot);
-    else         await driveCreateFile(filename, folderId, snapshot);
-    setDriveStatus('✅',`Saved to Google Drive:\n"${filename}"`);
-    showToast('Saved to Drive ✓');
-  }catch(e){
-    console.error('Drive save error:',e);
-    if(e.status===401){ driveAccessToken=null; setDriveStatus('❌','Session expired. Please try again.'); }
-    else setDriveStatus('❌','Save failed: '+(e.message||JSON.stringify(e)));
-  }
-}
-
-async function doLoadFromDrive(){
-  setDriveStatus('⏳','Loading your reports from Google Drive…');
-  try{
-    const folderId = await getOrCreateDriveFolder();
-    const files    = await driveListFiles(folderId);
-    if(!files.length){ setDriveStatus('📂','No saved reports found.\nSave a report first using the ☁ Save button.'); return; }
-    setDriveStatus('📂','Tap a report to load it:');
-    const listEl = document.getElementById('drive-file-list');
-    listEl.classList.remove('hidden');
-    listEl.innerHTML = files.map(f=>`
-      <div class="report-item" onclick="driveOpenFile('${f.id}','${esc(f.name)}')">
-        <div style="font-size:13px;font-weight:600;color:var(--text);">${f.name.replace('.fireguard','')}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px;">
-          ${f.modifiedTime?new Date(f.modifiedTime).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}):''}
-        </div>
-      </div>`).join('');
-  }catch(e){
-    console.error('Drive load error:',e);
-    if(e.status===401){ driveAccessToken=null; setDriveStatus('❌','Session expired. Please try again.'); }
-    else setDriveStatus('❌','Could not load reports: '+(e.message||JSON.stringify(e)));
-  }
-}
-
-async function driveOpenFile(fileId, filename){
-  setDriveStatus('⏳',`Loading "${filename.replace('.fireguard','')}"…`);
-  document.getElementById('drive-file-list').classList.add('hidden');
-  try{
-    const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      { headers:{ Authorization:'Bearer '+driveAccessToken } });
-    if(!resp.ok) throw {status:resp.status, message:resp.statusText};
-    const d = await resp.json();
-    clearAllState();
-    if(d.fv) Object.entries(d.fv).forEach(([k,v])=>{ const el=document.getElementById(k); if(el) el.value=v; });
-    itemStatuses=d.itemStatuses||{}; itemNotes=d.itemNotes||{};
-    manualDeficiencies=d.manualDeficiencies||[]; photos=d.photos||[];
-    devices=(d.devices||[]).map(x=>({...x,_id:devCounter++}));
-    custSigData=d.custSigData||null; inspSigData=d.inspSigData||null;
-    if(d.companyLogoData){
-      companyLogoData=d.companyLogoData;
-      const img=document.getElementById('logo-preview-img');
-      const pw=document.getElementById('logo-preview-wrap');
-      const dz=document.getElementById('logo-drop-zone');
-      if(img) img.src=companyLogoData;
-      if(pw)  pw.classList.remove('hidden');
-      if(dz)  dz.style.display='none';
-    }
-    buildInspectionItems(); renderPhotos(); renderDeviceTable();
-    closeDriveModal(); switchTab('info');
-    showToast(`"${filename.replace('.fireguard','')}" loaded ✓`);
-  }catch(e){
-    console.error('Drive open error:',e);
-    if(e.status===401){ driveAccessToken=null; setDriveStatus('❌','Session expired. Please try again.'); }
-    else setDriveStatus('❌','Could not open file: '+(e.message||JSON.stringify(e)));
-  }
-}
-
-async function getOrCreateDriveFolder(){
-  const q=encodeURIComponent(`name='${DRIVE_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-  const r=await driveAPIRequest(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
-  if(r.files&&r.files.length) return r.files[0].id;
-  const created=await driveAPIRequest('https://www.googleapis.com/drive/v3/files',
-    { method:'POST', body:JSON.stringify({ name:DRIVE_FOLDER, mimeType:'application/vnd.google-apps.folder' }) });
-  return created.id;
-}
-async function driveSearchFile(filename, folderId){
-  const q=encodeURIComponent(`name='${filename}' and '${folderId}' in parents and trashed=false`);
-  const r=await driveAPIRequest(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`);
-  return r.files&&r.files.length ? r.files[0].id : null;
-}
-async function driveListFiles(folderId){
-  const q=encodeURIComponent(`'${folderId}' in parents and trashed=false and name contains '.fireguard'`);
-  const r=await driveAPIRequest(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`);
-  return r.files||[];
-}
-async function driveCreateFile(filename, folderId, content){
-  const meta=JSON.stringify({ name:filename, parents:[folderId] });
-  const body=new FormData();
-  body.append('metadata', new Blob([meta],{type:'application/json'}));
-  body.append('file',     new Blob([content],{type:'application/json'}));
-  const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
-    { method:'POST', headers:{Authorization:'Bearer '+driveAccessToken}, body });
-  if(!r.ok) throw {status:r.status, message:await r.text()};
-  return (await r.json()).id;
-}
-async function driveUpdateFile(fileId, content){
-  const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
-    { method:'PATCH', headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'}, body:content });
-  if(!r.ok) throw {status:r.status, message:await r.text()};
-  return (await r.json()).id;
-}
-async function driveAPIRequest(url, opts={}){
-  const resp=await fetch(url, { ...opts, headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json',...(opts.headers||{})} });
-  if(!resp.ok) throw {status:resp.status, message:await resp.text()};
-  return resp.json();
-}
-
-// ── clearAllState is already defined earlier ──────
 function showToast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2600);

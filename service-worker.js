@@ -1,22 +1,14 @@
 // FireGuard Pro — Service Worker
 // Caches the app for full offline use on Android and PC.
 // Version bump this string to force a cache refresh after updates.
-const CACHE_NAME = 'fireguard-pro-v9';
-
-// Google API domains that must NEVER be cached — always fetch live
-const NO_CACHE_ORIGINS = [
-  'accounts.google.com',
-  'apis.google.com',
-  'oauth2.googleapis.com',
-  'www.googleapis.com',
-  'content.googleapis.com',
-];
+const CACHE_NAME = 'fireguard-pro-v4';
 
 // Files to cache on install
 const PRECACHE = [
   './',
   './fire_alarm_inspection.html',
   './manifest.json',
+  // External fonts & libraries are cached on first network fetch (see fetch handler)
 ];
 
 // Install: pre-cache core files
@@ -39,17 +31,11 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch handler
+// Fetch: cache-first for local files, network-first for external (fonts/CDN)
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Google APIs — always go to network, never cache
-  if (NO_CACHE_ORIGINS.some(origin => url.hostname.includes(origin))) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  // Same-origin (our app files) — cache first, fall back to network
+  // For same-origin requests: cache first, fall back to network
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(event.request).then(cached => {
@@ -66,7 +52,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Other external resources (fonts, CDN) — network first, cache as fallback
+  // For external resources (Google Fonts, CDN scripts): network first, fall back to cache
   event.respondWith(
     fetch(event.request)
       .then(response => {
