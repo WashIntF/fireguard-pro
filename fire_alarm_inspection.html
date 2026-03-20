@@ -13,8 +13,8 @@
 <title>FireGuard Pro — NFPA 72 Inspection</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async></script>
-<script src="https://apis.google.com/js/api.js" async></script>
+<script src="https://accounts.google.com/gsi/client" onload="onGsiLoad()"></script>
+<script src="https://apis.google.com/js/api.js" onload="onGapiLoad()"></script>
 <style>
   :root {
     --red:#e63329; --red-dark:#b8271e; --red-glow:rgba(230,51,41,0.18);
@@ -1593,6 +1593,57 @@ const DRIVE_FOLDER    = 'FireGuard Pro';
 
 let driveTokenClient = null, driveAccessToken = null, driveAction = null;
 let gapiReady = false, gsiReady = false;
+let pendingDriveAction = null; // queued if APIs not ready yet
+
+// Called by onload on the gsi script tag
+function onGsiLoad(){
+  try{
+    driveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: DRIVE_CLIENT_ID,
+      scope: DRIVE_SCOPES,
+      callback: onDriveToken,
+      error_callback:(e)=>{
+        console.error('Drive token error:',e);
+        setDriveStatus('❌','Sign-in failed: '+(e.message||e.type||'Unknown error'));
+      }
+    });
+    gsiReady = true;
+    checkDrivePending();
+  }catch(e){ console.warn('GSI init error:',e); }
+}
+
+// Called by onload on the gapi script tag
+function onGapiLoad(){
+  gapi.load('client', ()=>{
+    gapi.client.init({
+      apiKey: DRIVE_API_KEY,
+      discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+    }).then(()=>{
+      gapiReady = true;
+      checkDrivePending();
+    }).catch(e=>{ console.warn('gapi client init:',e); gapiReady=true; checkDrivePending(); });
+  });
+}
+
+// If a Drive action was triggered before APIs loaded, run it now
+function checkDrivePending(){
+  if(!gapiReady || !gsiReady || !pendingDriveAction) return;
+  const action = pendingDriveAction;
+  pendingDriveAction = null;
+  action();
+}
+  const proto = window.location.protocol;
+  if(proto === 'file:' || proto === 'storagerelay:'){
+    openDriveModal();
+    setDriveStatus('⚠️',
+      'Google Drive requires the app to be opened from your GitHub Pages URL (https://...).\n\n' +
+      'You are currently running the app as a local file, which Google does not allow.\n\n' +
+      'Open the app from your GitHub Pages URL in Chrome, then try again.'
+    );
+    return false;
+  }
+  return true;
+}
 
 // Detect if running as local file — OAuth requires HTTPS
 function driveContextOK(){
@@ -1609,27 +1660,8 @@ function driveContextOK(){
   return true;
 }
 
-function initDriveAPIs(){
-  if(typeof gapi !== 'undefined' && !gapiReady){
-    gapi.load('client', ()=>{
-      gapi.client.init({ apiKey:DRIVE_API_KEY, discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] })
-        .then(()=>{ gapiReady=true; }).catch(e=>console.warn('gapi init:',e));
-    });
-  }
-  if(typeof google !== 'undefined' && google.accounts && !gsiReady){
-    driveTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: DRIVE_CLIENT_ID,
-      scope: DRIVE_SCOPES,
-      callback: onDriveToken,
-      error_callback:(e)=>{ console.error('Drive token error:',e); setDriveStatus('❌','Sign-in failed: '+(e.message||e.type||'Unknown error')); }
-    });
-    gsiReady = true;
-  }
-}
-window.addEventListener('load', ()=>{ setTimeout(initDriveAPIs, 800); });
-
 function onDriveToken(resp){
-  if(resp.error){ setDriveStatus('❌','Sign-in failed: '+resp.error+(resp.error_description ? '\n'+resp.error_description:'')); return; }
+  if(resp.error){ setDriveStatus('❌','Sign-in failed: '+resp.error+(resp.error_description?'\n'+resp.error_description:'')); return; }
   driveAccessToken = resp.access_token;
   if(driveAction==='save') doSaveToDrive();
   else if(driveAction==='load') doLoadFromDrive();
@@ -1641,28 +1673,34 @@ function setDriveStatus(icon, msg){ document.getElementById('drive-status-icon')
 
 function driveSignIn(){
   if(!driveContextOK()) return;
-  driveAction='save'; openDriveModal();
+  driveAction='save';
+  openDriveModal();
   setDriveStatus('⏳','Connecting to Google Drive…');
   document.getElementById('drive-file-list').classList.add('hidden');
-  ensureDriveReady(()=> driveAccessToken ? doSaveToDrive() : requestDriveToken());
+  if(gapiReady && gsiReady){
+    driveAccessToken ? doSaveToDrive() : requestDriveToken();
+  } else {
+    setDriveStatus('⏳','Loading Google APIs…');
+    pendingDriveAction = ()=>{ driveAccessToken ? doSaveToDrive() : requestDriveToken(); };
+  }
 }
+
 function driveLoad(){
   if(!driveContextOK()) return;
-  driveAction='load'; openDriveModal();
+  driveAction='load';
+  openDriveModal();
   setDriveStatus('⏳','Connecting to Google Drive…');
   document.getElementById('drive-file-list').classList.add('hidden');
-  ensureDriveReady(()=> driveAccessToken ? doLoadFromDrive() : requestDriveToken());
+  if(gapiReady && gsiReady){
+    driveAccessToken ? doLoadFromDrive() : requestDriveToken();
+  } else {
+    setDriveStatus('⏳','Loading Google APIs…');
+    pendingDriveAction = ()=>{ driveAccessToken ? doLoadFromDrive() : requestDriveToken(); };
+  }
 }
-function ensureDriveReady(cb){
-  if(gapiReady && gsiReady){ cb(); return; }
-  let tries=0;
-  const t=setInterval(()=>{ tries++; initDriveAPIs();
-    if(gapiReady && gsiReady){ clearInterval(t); cb(); }
-    else if(tries>16){ clearInterval(t); setDriveStatus('❌','Google API failed to load.\nCheck your internet connection and try again.'); }
-  },400);
-}
+
 function requestDriveToken(){
-  if(!driveTokenClient){ setDriveStatus('❌','Google Sign-In not ready yet.\nWait a moment and try again.'); return; }
+  if(!driveTokenClient){ setDriveStatus('❌','Google Sign-In not initialised.\nPlease refresh the page and try again.'); return; }
   driveTokenClient.requestAccessToken({ prompt: driveAccessToken ? '' : 'select_account' });
 }
 
