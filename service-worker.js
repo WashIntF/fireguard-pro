@@ -1,7 +1,7 @@
 // FireGuard Pro — Service Worker
 // Caches the app for full offline use on Android and PC.
 // Version bump this string to force a cache refresh after updates.
-const CACHE_NAME = 'fireguard-pro-v6';
+const CACHE_NAME = 'fireguard-pro-v7';
 
 // Files to cache on install
 const PRECACHE = [

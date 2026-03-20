@@ -1505,6 +1505,20 @@ async function generateQRDataURL(){
 }
 
 // ══════════════════════════════════════════════════
+// ALL FIELD IDs — used by Drive save and settings apply
+// ══════════════════════════════════════════════════
+const ALL_FIELDS = [
+  'customer-name','address','city','state','zip','contact','phone','cust-email',
+  'insp-date','insp-time','report-num','insp-type','weather','occupancy','last-insp',
+  'ahj-name','ahj-contact','ahj-phone','ahj-email','permit-num','permit-exp','ahj-notes',
+  'sys-type','panel-mfr','panel-model','panel-serial','panel-firmware','panel-year',
+  'monitoring-co','monitoring-acct','panel-location','bat-make','bat-ah','bat-date',
+  'insp-name','cert-num','company','license','company-addr',
+  'final-result','insp-comments','corrections','reinspection','ahj-notify',
+  'cust-sig-name','cust-sig-title','insp-sig-name','insp-sig-date'
+];
+
+// ══════════════════════════════════════════════════
 // LOAD (backward compat — restores any old localStorage save)
 // ══════════════════════════════════════════════════
 function loadReport(){
