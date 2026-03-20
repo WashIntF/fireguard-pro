@@ -1,7 +1,7 @@
 // FireGuard Pro — Service Worker
 // Caches the app for full offline use on Android and PC.
 // Version bump this string to force a cache refresh after updates.
-const CACHE_NAME = 'fireguard-pro-v8';
+const CACHE_NAME = 'fireguard-pro-v9';
 
 // Google API domains that must NEVER be cached — always fetch live
 const NO_CACHE_ORIGINS = [

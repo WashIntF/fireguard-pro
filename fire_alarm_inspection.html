@@ -1632,18 +1632,6 @@ function checkDrivePending(){
   pendingDriveAction = null;
   action();
 }
-  const proto = window.location.protocol;
-  if(proto === 'file:' || proto === 'storagerelay:'){
-    openDriveModal();
-    setDriveStatus('⚠️',
-      'Google Drive requires the app to be opened from your GitHub Pages URL (https://...).\n\n' +
-      'You are currently running the app as a local file, which Google does not allow.\n\n' +
-      'Open the app from your GitHub Pages URL in Chrome, then try again.'
-    );
-    return false;
-  }
-  return true;
-}
 
 // Detect if running as local file — OAuth requires HTTPS
 function driveContextOK(){
