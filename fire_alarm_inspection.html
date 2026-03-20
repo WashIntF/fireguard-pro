@@ -1521,24 +1521,32 @@ async function printReport(btn){
   const origHTML = btn ? btn.innerHTML : '';
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="pdf-spinner"></span>Building…'; }
 
-  // Build a clean filename from facility name + date
-  // Setting document.title is the standard way to suggest a PDF filename in all browsers
+  // Build filename from facility name + date
+  // Android Chrome reads the <title> element directly; PC browsers use document.title
   const facility = (gv('customer-name')||'Inspection').replace(/[^a-zA-Z0-9\s\-]/g,'').trim();
   const date     = gv('insp-date') || new Date().toISOString().split('T')[0];
+  const pdfName  = `${facility} — ${date}`;
+
+  // Update both the JS property AND the actual DOM <title> element
+  const titleEl  = document.querySelector('title');
   const origTitle = document.title;
-  document.title  = `${facility} — ${date}`;
+  document.title = pdfName;
+  if(titleEl) titleEl.textContent = pdfName;
 
   try {
     const qrDataURL = await generateQRDataURL();
     buildPrintDoc(qrDataURL);
-    await new Promise(r => setTimeout(r, 80));
+    await new Promise(r => setTimeout(r, 120));
     window.print();
   } catch(err){
     console.error('printReport error:', err);
     showToast('Print error — try again');
   } finally {
-    // Restore title after a short delay to let the print dialog capture it first
-    setTimeout(()=>{ document.title = origTitle; }, 2000);
+    // Restore after delay so print dialog has time to capture the title
+    setTimeout(()=>{
+      document.title = origTitle;
+      if(titleEl) titleEl.textContent = origTitle;
+    }, 3000);
     if(btn){ btn.disabled=false; btn.innerHTML=origHTML; }
   }
 }
