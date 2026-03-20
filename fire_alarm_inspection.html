@@ -232,7 +232,6 @@
     </div>
     <div id="header-actions">
       <button class="btn btn-secondary btn-sm" onclick="openSettingsModal()" title="Inspector Settings">⚙️</button>
-      <button class="btn btn-secondary btn-sm" onclick="openEmailModal()">✉ Email</button>
     </div>
   </div>
 
@@ -496,34 +495,6 @@
 <!-- PRINT DOC (off-screen, not display:none — html2canvas needs it visible) -->
 <div id="print-doc" style="position:fixed;left:-9999px;top:0;width:816px;background:#fff;z-index:-1;pointer-events:none;"></div>
 
-<!-- EMAIL MODAL -->
-<div class="modal-overlay hidden" id="email-modal">
-  <div class="modal">
-    <div class="modal-title">✉ Email Report</div>
-    <div class="field-group single"><div class="field"><label>To</label><input id="email-to" type="email" placeholder="customer@company.com"></div></div>
-    <div class="field-group single"><div class="field"><label>CC</label><input id="email-cc" type="email" placeholder="office@yourcompany.com"></div></div>
-    <div class="field-group single"><div class="field"><label>Subject</label><input id="email-subject" type="text"></div></div>
-    <div class="field-group single"><div class="field"><label>Message</label><textarea id="email-body" rows="4"></textarea></div></div>
-
-    <!-- PDF status bar -->
-    <div id="pdf-status" class="hidden" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px;">
-      <span id="pdf-status-text"></span>
-    </div>
-
-    <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
-      <button class="btn btn-primary" id="btn-send-pdf" onclick="openReportAndEmail()" style="flex:1">
-        📄 Open Report PDF
-      </button>
-      <button class="btn btn-secondary" onclick="sendEmailOnly()" style="flex:1">✉ Email (Text Only)</button>
-    </div>
-    <button class="btn btn-secondary" onclick="closeEmailModal()" style="width:100%;margin-top:8px;">Cancel</button>
-    <p style="font-size:10px;color:var(--text3);margin-top:10px;text-align:center;line-height:1.6;">
-      <strong>Open Report PDF</strong> opens the full report in a new tab — choose <em>Save as PDF</em> in the print dialog, then attach it to your email.<br>
-      <strong>Email (Text Only)</strong> opens your email app with the report summary in the body.
-    </p>
-  </div>
-</div>
-
 <!-- Hidden QR code renderer -->
 <div id="print-qr-wrap" style="position:absolute;left:-9999px;top:-9999px;"><div id="qr-render"></div></div>
 
@@ -547,8 +518,6 @@
       <div class="field"><label>ZIP</label><input id="set-company-zip" type="text" placeholder="62701" maxlength="10"></div>
     </div>
     <div class="field-group single"><div class="field"><label>Phone Number</label><input id="set-company-phone" type="tel" placeholder="(555) 555-0000"></div></div>
-    <div class="field-group single"><div class="field"><label>Default CC Email (for email reports)</label><input id="set-cc-email" type="email" placeholder="office@yourcompany.com"></div></div>
-
     <div class="settings-section">Company Logo</div>
     <p style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Appears centered at the top of every report page and on the Summary screen.</p>
     <div id="logo-preview-wrap" class="hidden" style="margin-bottom:10px;">
@@ -679,7 +648,9 @@ function handleLogoUpload(e){
     document.getElementById('logo-filename').textContent=file.name;
     document.getElementById('logo-preview-wrap').classList.remove('hidden');
     document.getElementById('logo-drop-zone').style.display='none';
-    showToast('Logo uploaded ✓');
+    // Persist logo immediately into settings so it survives page reloads
+    _saveLogoToSettings(companyLogoData);
+    showToast('Logo saved ✓');
   };
   reader.readAsDataURL(file);
   e.target.value='';
@@ -689,7 +660,16 @@ function removeLogo(){
   document.getElementById('logo-preview-wrap').classList.add('hidden');
   document.getElementById('logo-drop-zone').style.display='';
   document.getElementById('logo-file-input').value='';
+  // Remove from settings too
+  _saveLogoToSettings(null);
   showToast('Logo removed');
+}
+function _saveLogoToSettings(logoData){
+  try{
+    const s=loadSettings();
+    s.companyLogo=logoData||null;
+    localStorage.setItem('fireguard_settings',JSON.stringify(s));
+  }catch(e){console.error('Logo save failed:',e);}
 }
 
 // ══════════════════════════════════════════════════
@@ -1000,8 +980,7 @@ function buildSummary(){
     </div>
     ${gv('insp-comments')?`<div class="card"><div class="card-header"><div class="card-title">Inspector Comments</div></div><p style="font-size:13px;line-height:1.6;color:var(--text2);">${gv('insp-comments')}</p></div>`:''}
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;">
-      <button class="btn btn-primary" onclick="openEmailModal()" style="flex:1">✉ Email Report</button>
-      <button class="btn btn-secondary" onclick="printReport(this)" style="flex:1">🖨 Print / Save PDF</button>
+      <button class="btn btn-primary" onclick="printReport(this)" style="flex:1">🖨 Print / Save PDF</button>
     </div>`;
 }
 
@@ -1184,51 +1163,6 @@ function buildPrintDoc(qrDataURL){
 
   ${photoSection}
   `;
-}
-
-// ══════════════════════════════════════════════════
-// EMAIL
-// ══════════════════════════════════════════════════
-function buildEmailBody(){
-  const custName=gv('customer-name')||'Customer';
-  const date=gv('insp-date')||new Date().toLocaleDateString();
-  const fullAddr=[gv('address'),gv('city'),gv('state'),gv('zip')].filter(Boolean).join(', ');
-  const rEl=document.getElementById('final-result');
-  const rText=rEl.options[rEl.selectedIndex].text;
-  const vals=Object.values(itemStatuses);
-  let defs=[];
-  INSPECTION_ITEMS.forEach(sec=>sec.items.forEach(item=>{if(itemStatuses[item.id]==='fail'||itemStatuses[item.id]==='deficiency')defs.push(`• ${item.text} [NFPA 72 §${sec.ref}]${itemNotes[item.id]?': '+itemNotes[item.id]:''}`);}));
-  manualDeficiencies.forEach(d=>defs.push(`• ${d.text} [NFPA 72 §${d.ref}]`));
-  let body=`Dear ${custName},\n\nPlease find your NFPA 72 Fire Alarm Inspection Report attached.\n\n`;
-  body+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nREPORT #: ${gv('report-num')||'—'}\nDATE: ${date} ${gv('insp-time')||''}\nLOCATION: ${fullAddr||'—'}\nINSPECTION TYPE: ${gv('insp-type')}\nSYSTEM TYPE: ${gv('sys-type')}\nPANEL: ${[gv('panel-mfr'),gv('panel-model'),gv('panel-serial')].filter(Boolean).join(' / ')||'—'}\nMONITORING: ${gv('monitoring-co')||'—'} | Acct: ${gv('monitoring-acct')||'—'}\nRESULT: ${rText}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  body+=`\nINSPECTION SUMMARY:\nPass: ${vals.filter(v=>v==='pass').length} | Fail: ${vals.filter(v=>v==='fail').length} | Deficiency: ${vals.filter(v=>v==='deficiency').length} | N/A: ${vals.filter(v=>v==='na').length}`;
-  if(defs.length)body+=`\n\nDEFICIENCIES:\n${defs.join('\n')}`;
-  if(gv('corrections'))body+=`\n\nREQUIRED CORRECTIONS:\n${gv('corrections')}`;
-  if(gv('reinspection')!=='No')body+=`\n\nREINSPECTION: ${gv('reinspection')}`;
-  body+=`\n\n${gv('company')||''}\n${gv('insp-name')||''}\nCert: ${gv('cert-num')||''} | License: ${gv('license')||''}\n${gv('company-addr')||''}`;
-  return body;
-}
-
-function openEmailModal(){
-  buildSummary();
-  document.getElementById('email-to').value=gv('cust-email');
-  document.getElementById('email-cc').value=loadSettings().ccEmail||'';
-  document.getElementById('email-subject').value=`Fire Alarm Inspection Report — ${gv('customer-name')||'Customer'} — ${gv('insp-date')||new Date().toLocaleDateString()}`;
-  document.getElementById('email-body').value=buildEmailBody();
-  document.getElementById('pdf-status').classList.add('hidden');
-  document.getElementById('pdf-status-text').innerHTML='';
-  const btn=document.getElementById('btn-send-pdf');
-  if(btn){ btn.disabled=false; btn.innerHTML='📄 Open Report PDF'; }
-  document.getElementById('email-modal').classList.remove('hidden');
-}
-
-function closeEmailModal(){document.getElementById('email-modal').classList.add('hidden');}
-
-function setPDFStatus(msg, done=false){
-  const bar=document.getElementById('pdf-status');
-  const txt=document.getElementById('pdf-status-text');
-  bar.classList.remove('hidden');
-  txt.innerHTML=done?`✅ ${msg}`:`<span class="pdf-spinner"></span>${msg}`;
 }
 
 // ══════════════════════════════════════════════════
@@ -1430,44 +1364,6 @@ ${content}
 </html>`;
 }
 
-// ── OPEN REPORT + EMAIL ───────────────────────────
-// Opens the identical report window as the Print button,
-// then opens the email client. User saves PDF from the
-// print dialog and attaches it — both outputs are identical.
-async function openReportAndEmail(){
-  const btn = document.getElementById('btn-send-pdf');
-  const origHTML = btn ? btn.innerHTML : '';
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="pdf-spinner"></span>Building…'; }
-  setPDFStatus('Opening print dialog…');
-  try {
-    buildSummary();
-    const qrDataURL = await generateQRDataURL();
-    buildPrintDoc(qrDataURL);
-    await new Promise(r => setTimeout(r, 80));
-    window.print();
-    setPDFStatus('✅ Save as PDF in the print dialog, then attach to your email below.', true);
-    setTimeout(()=>{
-      const to   = encodeURIComponent(gv('email-to'));
-      const cc   = encodeURIComponent(gv('email-cc'));
-      const sub  = encodeURIComponent(gv('email-subject'));
-      const body = encodeURIComponent(gv('email-body'));
-      window.open(`mailto:${to}?cc=${cc}&subject=${sub}&body=${body}`, '_self');
-    }, 1000);
-  } catch(err){
-    console.error('openReportAndEmail error:', err);
-    setPDFStatus('Error — try the Print / Save PDF button instead.', true);
-  } finally {
-    if(btn){ btn.disabled=false; btn.innerHTML=origHTML; }
-  }
-}
-
-function sendEmailOnly(){
-  const to=encodeURIComponent(gv('email-to')),cc=encodeURIComponent(gv('email-cc'));
-  const sub=encodeURIComponent(gv('email-subject')),body=encodeURIComponent(gv('email-body'));
-  window.open(`mailto:${to}?cc=${cc}&subject=${sub}&body=${body}`,'_self');
-  closeEmailModal();showToast('Opening email app…');
-}
-
 // ══════════════════════════════════════════════════
 // TAB NAV
 // ══════════════════════════════════════════════════
@@ -1494,7 +1390,16 @@ function openSettingsModal(){
   document.getElementById('set-company-state').value=s.companyState||'';
   document.getElementById('set-company-zip').value=s.companyZip||'';
   document.getElementById('set-company-phone').value=s.companyPhone||'';
-  document.getElementById('set-cc-email').value=s.ccEmail||'';
+  // Restore logo preview
+  if(s.companyLogo){
+    document.getElementById('logo-preview-img').src=s.companyLogo;
+    document.getElementById('logo-filename').textContent='Saved logo';
+    document.getElementById('logo-preview-wrap').classList.remove('hidden');
+    document.getElementById('logo-drop-zone').style.display='none';
+  } else {
+    document.getElementById('logo-preview-wrap').classList.add('hidden');
+    document.getElementById('logo-drop-zone').style.display='';
+  }
   document.getElementById('settings-modal').classList.remove('hidden');
 }
 function closeSettingsModal(){document.getElementById('settings-modal').classList.add('hidden');}
@@ -1502,6 +1407,7 @@ function loadSettings(){
   try{return JSON.parse(localStorage.getItem('fireguard_settings')||'{}');}catch(e){return {};}
 }
 function saveSettings(){
+  const existing=loadSettings();
   const s={
     inspName:document.getElementById('set-insp-name').value,
     certNum:document.getElementById('set-cert-num').value,
@@ -1512,7 +1418,8 @@ function saveSettings(){
     companyState:document.getElementById('set-company-state').value,
     companyZip:document.getElementById('set-company-zip').value,
     companyPhone:document.getElementById('set-company-phone').value,
-    ccEmail:document.getElementById('set-cc-email').value,
+    // Preserve the logo — it's saved separately via _saveLogoToSettings
+    companyLogo: companyLogoData || existing.companyLogo || null,
   };
   localStorage.setItem('fireguard_settings',JSON.stringify(s));
   showToast('Settings saved ✓');
@@ -1539,6 +1446,16 @@ function applySettingsOnLoad(){
     ['company',s.company],['company-addr',fullAddr]
   ];
   fields.forEach(([id,val])=>{const el=document.getElementById(id);if(el&&!el.value&&val)el.value=val;});
+  // Restore logo from settings (takes priority over anything else)
+  if(s.companyLogo && !companyLogoData){
+    companyLogoData=s.companyLogo;
+    const img=document.getElementById('logo-preview-img');
+    const pw=document.getElementById('logo-preview-wrap');
+    const dz=document.getElementById('logo-drop-zone');
+    if(img) img.src=companyLogoData;
+    if(pw)  pw.classList.remove('hidden');
+    if(dz)  dz.style.display='none';
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -1603,6 +1520,14 @@ async function printReport(btn){
   buildSummary();
   const origHTML = btn ? btn.innerHTML : '';
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="pdf-spinner"></span>Building…'; }
+
+  // Build a clean filename from facility name + date
+  // Setting document.title is the standard way to suggest a PDF filename in all browsers
+  const facility = (gv('customer-name')||'Inspection').replace(/[^a-zA-Z0-9\s\-]/g,'').trim();
+  const date     = gv('insp-date') || new Date().toISOString().split('T')[0];
+  const origTitle = document.title;
+  document.title  = `${facility} — ${date}`;
+
   try {
     const qrDataURL = await generateQRDataURL();
     buildPrintDoc(qrDataURL);
@@ -1612,6 +1537,8 @@ async function printReport(btn){
     console.error('printReport error:', err);
     showToast('Print error — try again');
   } finally {
+    // Restore title after a short delay to let the print dialog capture it first
+    setTimeout(()=>{ document.title = origTitle; }, 2000);
     if(btn){ btn.disabled=false; btn.innerHTML=origHTML; }
   }
 }
