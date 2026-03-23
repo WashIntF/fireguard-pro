@@ -1,9 +1,7 @@
-// FireGuard Pro — Service Worker
-// Caches the app for full offline use on Android and PC.
-// Version bump this string to force a cache refresh after updates.
-const CACHE_NAME = 'fireguard-pro-v10';
+// FireGuard Pro — Service Worker v10
+const CACHE_NAME = 'fireguard-pro-v11';
 
-// Google API domains that must NEVER be cached — always fetch live
+// Google API domains — never cache, always fetch live
 const NO_CACHE_ORIGINS = [
   'accounts.google.com',
   'apis.google.com',
@@ -12,70 +10,65 @@ const NO_CACHE_ORIGINS = [
   'content.googleapis.com',
 ];
 
-// Files to cache on install
 const PRECACHE = [
-  './',
   './fire_alarm_inspection.html',
   './manifest.json',
 ];
 
-// Install: pre-cache core files
+// Install: cache app files and activate immediately
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()) // Take over immediately, don't wait
   );
 });
 
-// Activate: delete old caches
+// Activate: delete ALL old caches and claim all open tabs right away
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim()) // Take control of all open tabs immediately
   );
 });
 
-// Fetch handler
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Google APIs — always go to network, never cache
-  if (NO_CACHE_ORIGINS.some(origin => url.hostname.includes(origin))) {
-    event.respondWith(fetch(event.request));
+  // Google APIs — always live, never cached
+  if (NO_CACHE_ORIGINS.some(o => url.hostname.includes(o))) {
+    event.respondWith(fetch(event.request).catch(() => new Response('', {status: 503})));
     return;
   }
 
-  // Same-origin (our app files) — cache first, fall back to network
-  if (url.origin === self.location.origin) {
+  // App HTML — network first so updates are always picked up, cache as fallback
+  if (url.pathname.endsWith('.html') && url.origin === self.location.origin) {
     event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
-        return fetch(event.request).then(response => {
+      fetch(event.request)
+        .then(response => {
           if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
           }
           return response;
-        });
-      })
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
 
-  // Other external resources (fonts, CDN) — network first, cache as fallback
+  // Everything else — cache first, network fallback
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(response => {
         if (response && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
-      })
-      .catch(() => caches.match(event.request))
+      }).catch(() => new Response('', {status: 503}));
+    })
   );
 });

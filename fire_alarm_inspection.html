@@ -13,8 +13,6 @@
 <title>FireGuard Pro — NFPA 72 Inspection</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" onload="onGsiLoad()"></script>
-<script src="https://apis.google.com/js/api.js" onload="onGapiLoad()"></script>
 <style>
   :root {
     --red:#e63329; --red-dark:#b8271e; --red-glow:rgba(230,51,41,0.18);
@@ -1522,9 +1520,9 @@ const ALL_FIELDS = [
 // LOAD (backward compat — restores any old localStorage save)
 // ══════════════════════════════════════════════════
 function loadReport(){
-  const saved = localStorage.getItem('fireguard_report');
-  if(!saved) return;
   try{
+    const saved = localStorage.getItem('fireguard_report');
+    if(!saved) return;
     const d = JSON.parse(saved);
     if(d.fv) Object.entries(d.fv).forEach(([k,v]) => { const el=document.getElementById(k); if(el) el.value=v; });
     itemStatuses       = d.itemStatuses       || {};
@@ -1592,10 +1590,10 @@ const DRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_FOLDER    = 'FireGuard Pro';
 
 let driveTokenClient = null, driveAccessToken = null, driveAction = null;
-let gapiReady = false, gsiReady = false;
-let pendingDriveAction = null; // queued if APIs not ready yet
+let gsiReady = false;
+let pendingDriveAction = null;
 
-// Called by onload on the gsi script tag
+// Called by onload on the GSI script tag
 function onGsiLoad(){
   try{
     driveTokenClient = google.accounts.oauth2.initTokenClient({
@@ -1608,29 +1606,16 @@ function onGsiLoad(){
       }
     });
     gsiReady = true;
-    checkDrivePending();
-  }catch(e){ console.warn('GSI init error:',e); }
-}
-
-// Called by onload on the gapi script tag
-function onGapiLoad(){
-  gapi.load('client', ()=>{
-    gapi.client.init({
-      apiKey: DRIVE_API_KEY,
-      discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-    }).then(()=>{
-      gapiReady = true;
-      checkDrivePending();
-    }).catch(e=>{ console.warn('gapi client init:',e); gapiReady=true; checkDrivePending(); });
-  });
-}
-
-// If a Drive action was triggered before APIs loaded, run it now
-function checkDrivePending(){
-  if(!gapiReady || !gsiReady || !pendingDriveAction) return;
-  const action = pendingDriveAction;
-  pendingDriveAction = null;
-  action();
+    // If user already clicked Save/Load, run it now
+    if(pendingDriveAction){
+      const action = pendingDriveAction;
+      pendingDriveAction = null;
+      action();
+    }
+  }catch(e){
+    console.warn('GSI init error:',e);
+    setDriveStatus('❌','Google Sign-In failed to load. Check your internet connection.');
+  }
 }
 
 // Detect if running as local file — OAuth requires HTTPS
@@ -1663,12 +1648,12 @@ function driveSignIn(){
   if(!driveContextOK()) return;
   driveAction='save';
   openDriveModal();
-  setDriveStatus('⏳','Connecting to Google Drive…');
   document.getElementById('drive-file-list').classList.add('hidden');
-  if(gapiReady && gsiReady){
+  if(gsiReady){
+    setDriveStatus('⏳','Connecting to Google Drive…');
     driveAccessToken ? doSaveToDrive() : requestDriveToken();
   } else {
-    setDriveStatus('⏳','Loading Google APIs…');
+    setDriveStatus('⏳','Loading Google Sign-In…');
     pendingDriveAction = ()=>{ driveAccessToken ? doSaveToDrive() : requestDriveToken(); };
   }
 }
@@ -1677,12 +1662,12 @@ function driveLoad(){
   if(!driveContextOK()) return;
   driveAction='load';
   openDriveModal();
-  setDriveStatus('⏳','Connecting to Google Drive…');
   document.getElementById('drive-file-list').classList.add('hidden');
-  if(gapiReady && gsiReady){
+  if(gsiReady){
+    setDriveStatus('⏳','Connecting to Google Drive…');
     driveAccessToken ? doLoadFromDrive() : requestDriveToken();
   } else {
-    setDriveStatus('⏳','Loading Google APIs…');
+    setDriveStatus('⏳','Loading Google Sign-In…');
     pendingDriveAction = ()=>{ driveAccessToken ? doLoadFromDrive() : requestDriveToken(); };
   }
 }
@@ -1842,5 +1827,7 @@ document.getElementById('tab-signature').addEventListener('click',()=>{
   setTimeout(()=>{setupCanvas('sig-canvas');setupCanvas('insp-sig-canvas');},80);
 });
 </script>
+<!-- Google Identity Services for OAuth token — loaded last so callback functions are defined -->
+<script src="https://accounts.google.com/gsi/client" onload="onGsiLoad()" async></script>
 </body>
 </html>
