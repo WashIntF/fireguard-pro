@@ -1723,6 +1723,19 @@ async function doLoadFromDrive(){
   }
 }
 
+function clearAllState(){
+  itemStatuses={}; itemNotes={}; photos=[]; manualDeficiencies=[];
+  custSigData=null; inspSigData=null; companyLogoData=null;
+  devices=[]; devCounter=1;
+  ['sig-canvas','insp-sig-canvas'].forEach(id=>{
+    try{ const c=document.getElementById(id); if(c&&c.width) c.getContext('2d').clearRect(0,0,c.width,c.height); }catch(e){}
+  });
+  const pw=document.getElementById('logo-preview-wrap');
+  const dz=document.getElementById('logo-drop-zone');
+  if(pw) pw.classList.add('hidden');
+  if(dz) dz.style.display='';
+}
+
 async function driveOpenFile(fileId, filename){
   setDriveStatus('⏳',`Loading "${filename.replace('.fireguard','')}"…`);
   document.getElementById('drive-file-list').classList.add('hidden');
