@@ -236,8 +236,6 @@
     <div id="header-actions">
       <button class="btn btn-secondary btn-sm" onclick="driveSignIn()" id="btn-drive-save" title="Save to Google Drive">☁ Save</button>
       <button class="btn btn-secondary btn-sm" onclick="driveLoad()" id="btn-drive-load" title="Load from Google Drive">☁ Load</button>
-      <button class="btn btn-secondary btn-sm" onclick="exportReport()" title="Export report as .fireguard file">📤 Export</button>
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file-input').click()" title="Import a .fireguard file from another user">📥 Import</button>
       <button class="btn btn-secondary btn-sm" onclick="openSettingsModal()" title="Inspector Settings">⚙️</button>
     </div>
   </div>
@@ -565,7 +563,6 @@
 
 
 <div id="toast"></div>
-<input type="file" id="import-file-input" accept=".fireguard,.json" style="display:none" onchange="importReport(event)">
 
 <script>
 // ══════════════════════════════════════════════════
@@ -1813,70 +1810,6 @@ async function driveAPIRequest(url, opts={}){
 }
 
 // ── clearAllState is already defined earlier ──────
-
-// ══════════════════════════════════════════════════
-// EXPORT / IMPORT (local file — works across users)
-// ══════════════════════════════════════════════════
-function exportReport(){
-  const fv={};
-  ALL_FIELDS.forEach(f=>{ const el=document.getElementById(f); if(el) fv[f]=el.value; });
-  const snapshot=JSON.stringify({
-    _version:2, _app:'FireGuard Pro', _savedAt:new Date().toISOString(),
-    fv, itemStatuses, itemNotes, manualDeficiencies, photos, devices,
-    custSigData, inspSigData, companyLogoData
-  });
-  const facility=(gv('customer-name')||'Report').replace(/[^a-zA-Z0-9\s\-]/g,'').trim();
-  const date=gv('insp-date')||new Date().toISOString().split('T')[0];
-  const filename=`${facility} — ${date}.fireguard`;
-  const url=URL.createObjectURL(new Blob([snapshot],{type:'application/json'}));
-  const a=document.createElement('a');
-  a.href=url; a.download=filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-  showToast(`Exported "${filename}" ✓`);
-}
-
-function importReport(event){
-  const file=event.target.files[0];
-  event.target.value='';
-  if(!file) return;
-  if(!file.name.endsWith('.fireguard')&&!file.name.endsWith('.json')){
-    showToast('Please select a .fireguard file'); return;
-  }
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const d=JSON.parse(ev.target.result);
-      if(!d._app||d._app!=='FireGuard Pro'){
-        showToast('Invalid FireGuard Pro file'); return;
-      }
-      clearAllState();
-      ALL_FIELDS.forEach(f=>{ const el=document.getElementById(f); if(el) el.value=''; });
-      if(d.fv) Object.entries(d.fv).forEach(([k,v])=>{ const el=document.getElementById(k); if(el) el.value=v; });
-      itemStatuses=d.itemStatuses||{}; itemNotes=d.itemNotes||{};
-      manualDeficiencies=d.manualDeficiencies||[]; photos=d.photos||[];
-      devices=(d.devices||[]).map(x=>({...x,_id:devCounter++}));
-      custSigData=d.custSigData||null; inspSigData=d.inspSigData||null;
-      if(d.companyLogoData){
-        companyLogoData=d.companyLogoData;
-        const img=document.getElementById('logo-preview-img');
-        const pw=document.getElementById('logo-preview-wrap');
-        const dz=document.getElementById('logo-drop-zone');
-        if(img) img.src=companyLogoData;
-        if(pw)  pw.classList.remove('hidden');
-        if(dz)  dz.style.display='none';
-      }
-      buildInspectionItems(); renderPhotos(); renderDeviceTable();
-      switchTab('info');
-      showToast(`"${file.name.replace('.fireguard','')}" imported ✓`);
-    }catch(e){
-      console.error('Import error:',e);
-      showToast('Import failed — file may be corrupted');
-    }
-  };
-  reader.readAsText(file);
-}
-
 function showToast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2600);
