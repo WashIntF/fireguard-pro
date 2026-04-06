@@ -374,7 +374,7 @@
             <thead><tr>
               <th style="width:32px;">#</th>
               <th>Device ID</th><th>Type</th><th>Location / Zone</th>
-              <th>Floor</th><th>Make / Model</th><th>Result</th><th>Notes</th>
+              <th>Make / Model</th><th>Result</th><th>Notes</th>
               <th style="width:28px;"></th>
             </tr></thead>
             <tbody id="device-tbody"></tbody>
@@ -695,7 +695,7 @@ function _saveLogoToSettings(logoData){
 // DEVICE LIST
 // ══════════════════════════════════════════════════
 function addDeviceRow(){
-  devices.push({_id:devCounter++,devId:'',type:'Smoke Detector',location:'',floor:'',model:'',result:'pending',notes:''});
+  devices.push({_id:devCounter++,devId:'',type:'Smoke Detector',location:'',floor:'',model:'',result:'pass',notes:''});
   renderDeviceTable();
 }
 function renderDeviceTable(){
@@ -710,7 +710,6 @@ function renderDeviceTable(){
       <td><input class="device-input" value="${esc(d.devId)}" placeholder="L1-001" oninput="devices[${i}].devId=this.value" style="min-width:70px;"></td>
       <td><select class="device-status-sel" style="min-width:130px;" onchange="devices[${i}].type=this.value">${DEVICE_TYPES.map(t=>`<option${d.type===t?' selected':''}>${t}</option>`).join('')}</select></td>
       <td><input class="device-input" value="${esc(d.location)}" placeholder="Lobby..." oninput="devices[${i}].location=this.value" style="min-width:100px;"></td>
-      <td><input class="device-input" value="${esc(d.floor)}" placeholder="1" oninput="devices[${i}].floor=this.value" style="width:46px;"></td>
       <td><input class="device-input" value="${esc(d.model)}" placeholder="Make/Model" oninput="devices[${i}].model=this.value" style="min-width:100px;"></td>
       <td><select class="device-status-sel" style="min-width:80px;" onchange="devices[${i}].result=this.value">
         <option value="pending"${d.result==='pending'?' selected':''}>—</option>
@@ -745,7 +744,7 @@ function importCSV(e){
         location:cols[col('location')]||cols[col('zone')]||'',
         floor:cols[col('floor')]||'',
         model:cols[col('make_model')]||cols[col('model')]||'',
-        result:'pending',
+        result:'pass',
         notes:cols[col('notes')]||''
       });
       added++;
