@@ -1,5 +1,5 @@
 // FireGuard Pro — Service Worker v10
-const CACHE_NAME = 'fireguard-pro-v16';
+const CACHE_NAME = 'fireguard-pro-v17';
 
 // Google API domains — never cache, always fetch live
 const NO_CACHE_ORIGINS = [
