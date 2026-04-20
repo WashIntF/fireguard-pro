@@ -247,6 +247,7 @@
     <div class="tab active" onclick="switchTab('info')" id="tab-info"><span>🏢</span>Job Info</div>
     <div class="tab" onclick="switchTab('devices')" id="tab-devices"><span>📟</span>Devices</div>
     <div class="tab" onclick="switchTab('inspection')" id="tab-inspection"><span>🔍</span>Inspection</div>
+    <div class="tab" onclick="switchTab('suppression')" id="tab-suppression"><span>🧯</span>Suppression</div>
     <div class="tab" onclick="switchTab('photos')" id="tab-photos"><span>📷</span>Photos</div>
     <div class="tab" onclick="switchTab('deficiencies')" id="tab-deficiencies"><span>⚠️</span>Deficiencies</div>
     <div class="tab" onclick="switchTab('signature')" id="tab-signature"><span>✍️</span>Signature</div>
@@ -374,7 +375,7 @@
             <thead><tr>
               <th style="width:32px;">#</th>
               <th>Device ID</th><th>Type</th><th>Location / Zone</th>
-              <th>Make / Model</th><th>Result</th><th>Notes</th>
+              <th>Floor</th><th>Make / Model</th><th>Result</th><th>Notes</th>
               <th style="width:28px;"></th>
             </tr></thead>
             <tbody id="device-tbody"></tbody>
@@ -398,6 +399,83 @@
         <div class="stat-box stat-na"><div class="stat-num" id="stat-na">0</div><div class="stat-lbl">N/A</div></div>
       </div>
       <div class="card" style="padding-bottom:8px;"><div id="inspection-items"></div></div>
+    </div>
+
+    <!-- SUPPRESSION -->
+    <div class="panel" id="panel-suppression">
+
+      <!-- System Info -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Clean Agent System Info</div><div class="card-badge badge-blue">NFPA 2001</div></div>
+        <div class="field-group">
+          <div class="field"><label>Agent Type</label>
+            <select id="sup-agent-type" onchange="updateBottleAgentDefaults()">
+              <option value="">— Select Agent —</option>
+              <option value="FM-200 (HFC-227ea)">FM-200 (HFC-227ea)</option>
+              <option value="Novec 1230 (FK-5-1-12)">Novec 1230 (FK-5-1-12)</option>
+              <option value="ECARO-25 (HFC-125)">ECARO-25 (HFC-125)</option>
+              <option value="Halotron I">Halotron I</option>
+              <option value="Halon 1301">Halon 1301</option>
+              <option value="Inergen (IG-541)">Inergen (IG-541)</option>
+              <option value="Argonite (IG-55)">Argonite (IG-55)</option>
+              <option value="CO2">CO2</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="field"><label>Manufacturer</label><input id="sup-mfr" type="text" placeholder="Kidde, Fike, Firetrace..."></div>
+        </div>
+        <div class="field-group">
+          <div class="field"><label>Model / Panel</label><input id="sup-model" type="text" placeholder="Model..."></div>
+          <div class="field"><label>Install Year</label><input id="sup-install-year" type="text" placeholder="2019"></div>
+        </div>
+        <div class="field-group">
+          <div class="field"><label>Last Service Date</label><input id="sup-last-service" type="date"></div>
+          <div class="field"><label>Protected Hazard / Area</label><input id="sup-hazard" type="text" placeholder="Server room, vault..."></div>
+        </div>
+        <div class="field-group single"><div class="field"><label>System Notes</label><textarea id="sup-notes" placeholder="Additional notes..." rows="2"></textarea></div></div>
+      </div>
+
+      <!-- Bottle Inventory -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Cylinder Inventory</div>
+          <div class="card-badge badge-orange" id="bottle-count-badge">0 Cylinders</div>
+        </div>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Hydro due dates are calculated automatically per NFPA 2001. Liquefied agents (FM-200, Novec, Halon, ECARO, Halotron) = 12 yr interval. High-pressure inert gas (Inergen, Argonite) and CO2 = 5 yr interval.</p>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button class="btn btn-info btn-sm" onclick="addBottleRow()">+ Add Cylinder</button>
+          <button class="btn btn-secondary btn-sm" onclick="clearAllBottles()">🗑 Clear All</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="device-table" id="bottle-table">
+            <thead><tr>
+              <th style="width:28px;">#</th>
+              <th>Cylinder ID / Label</th>
+              <th>Agent</th>
+              <th>Serial #</th>
+              <th>Last Hydro Date</th>
+              <th>Hydro Due</th>
+              <th>Fill Wt / Pressure</th>
+              <th>Status</th>
+              <th style="width:28px;"></th>
+            </tr></thead>
+            <tbody id="bottle-tbody"></tbody>
+          </table>
+        </div>
+        <p id="bottle-empty" style="color:var(--text3);font-size:13px;padding:16px 0;text-align:center;">No cylinders yet — tap + Add Cylinder.</p>
+      </div>
+
+      <!-- Checklist -->
+      <div class="card" style="padding-bottom:8px;">
+        <div class="card-header"><div class="card-title">Clean Agent Checklist</div><div class="card-badge badge-orange">NFPA 2001</div></div>
+        <div class="stats-row">
+          <div class="stat-box stat-pass"><div class="stat-num" id="sup-stat-pass">0</div><div class="stat-lbl">Pass</div></div>
+          <div class="stat-box stat-fail"><div class="stat-num" id="sup-stat-fail">0</div><div class="stat-lbl">Fail</div></div>
+          <div class="stat-box stat-def"><div class="stat-num" id="sup-stat-def">0</div><div class="stat-lbl">Deficiency</div></div>
+          <div class="stat-box stat-na"><div class="stat-num" id="sup-stat-na">0</div><div class="stat-lbl">N/A</div></div>
+        </div>
+        <div id="suppression-items"></div>
+      </div>
     </div>
 
     <!-- PHOTOS -->
@@ -645,6 +723,157 @@ const INSPECTION_ITEMS = [
 
 const DEVICE_TYPES=['Smoke Detector','Heat Detector','Manual Pull Station','Duct Detector','Waterflow Switch','Tamper Switch','CO Detector','Horn','Strobe','Horn/Strobe','Speaker','Speaker/Strobe','Control Module','Monitor Module','Relay Module','NAC Extender','Annunciator','Other'];
 
+// ── HYDRO INTERVALS (years) per NFPA 2001 / DOT ──
+const HYDRO_INTERVALS = {
+  'FM-200 (HFC-227ea)':12, 'Novec 1230 (FK-5-1-12)':12,
+  'ECARO-25 (HFC-125)':12, 'Halotron I':12, 'Halon 1301':12,
+  'Inergen (IG-541)':5, 'Argonite (IG-55)':5, 'CO2':5, 'Other':5
+};
+function getHydroDueDate(agent, lastHydroDate){
+  if(!lastHydroDate) return '';
+  const interval = HYDRO_INTERVALS[agent] || 5;
+  const d = new Date(lastHydroDate + 'T00:00:00');
+  if(isNaN(d)) return '';
+  d.setFullYear(d.getFullYear() + interval);
+  return d.toISOString().split('T')[0];
+}
+function hydroDueColor(dueDate){
+  if(!dueDate) return 'var(--text3)';
+  const now = new Date(); now.setHours(0,0,0,0);
+  const due = new Date(dueDate + 'T00:00:00');
+  const diffDays = Math.round((due - now) / 86400000);
+  if(diffDays < 0)   return 'var(--red)';
+  if(diffDays < 365) return 'var(--orange)';
+  return 'var(--green)';
+}
+
+// ── SUPPRESSION STATE ──
+let suppressionStatuses = {}, suppressionNotes = {};
+let supBottles = [], supBottleCounter = 1;
+
+// ── BOTTLE INVENTORY ──
+function addBottleRow(){
+  const defaultAgent = document.getElementById('sup-agent-type').value || '';
+  supBottles.push({_id:supBottleCounter++, label:'', agent:defaultAgent, serial:'', lastHydro:'', fillWt:'', status:'pass', notes:''});
+  renderBottleTable();
+}
+function renderBottleTable(){
+  const tbody = document.getElementById('bottle-tbody');
+  const empty = document.getElementById('bottle-empty');
+  document.getElementById('bottle-count-badge').textContent = supBottles.length + ' Cylinder' + (supBottles.length !== 1 ? 's' : '');
+  if(!supBottles.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  const agentOptions = ['FM-200 (HFC-227ea)','Novec 1230 (FK-5-1-12)','ECARO-25 (HFC-125)','Halotron I','Halon 1301','Inergen (IG-541)','Argonite (IG-55)','CO2','Other'];
+  tbody.innerHTML = supBottles.map((b,i) => {
+    const due = getHydroDueDate(b.agent, b.lastHydro);
+    const dueColor = hydroDueColor(due);
+    const dueDisplay = due ? `<span style="color:${dueColor};font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;">${due}${dueColor===`var(--red)`?' ⚠️':''}</span>` : '<span style="color:var(--text3);font-size:11px;">—</span>';
+    return `<tr>
+      <td style="color:var(--text3);font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;">${i+1}</td>
+      <td><input class="device-input" value="${esc(b.label)}" placeholder="CYL-01" oninput="supBottles[${i}].label=this.value" style="min-width:70px;"></td>
+      <td><select class="device-status-sel" style="min-width:140px;" onchange="supBottles[${i}].agent=this.value;renderBottleTable()">
+        <option value="">— Select —</option>
+        ${agentOptions.map(a=>`<option${b.agent===a?' selected':''}>${a}</option>`).join('')}
+      </select></td>
+      <td><input class="device-input" value="${esc(b.serial)}" placeholder="SN-000000" oninput="supBottles[${i}].serial=this.value" style="min-width:90px;"></td>
+      <td><input class="device-input" type="date" value="${esc(b.lastHydro)}" oninput="supBottles[${i}].lastHydro=this.value;renderBottleTable()" style="min-width:130px;"></td>
+      <td style="text-align:center;">${dueDisplay}</td>
+      <td><input class="device-input" value="${esc(b.fillWt)}" placeholder="e.g. 125 lb" oninput="supBottles[${i}].fillWt=this.value" style="min-width:80px;"></td>
+      <td><select class="device-status-sel" style="min-width:80px;" onchange="supBottles[${i}].status=this.value">
+        <option value="pass"${b.status==='pass'?' selected':''}>Pass</option>
+        <option value="fail"${b.status==='fail'?' selected':''}>Fail</option>
+        <option value="na"${b.status==='na'?' selected':''}>N/A</option>
+      </select></td>
+      <td><button class="dev-rm" onclick="removeBottle(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+function removeBottle(i){ supBottles.splice(i,1); renderBottleTable(); }
+function clearAllBottles(){ if(!supBottles.length||confirm('Clear all cylinders?')){ supBottles=[];supBottleCounter=1;renderBottleTable(); } }
+function updateBottleAgentDefaults(){
+  // If bottles have no agent set yet, pre-fill from system agent
+  const sysAgent = document.getElementById('sup-agent-type').value;
+  supBottles.forEach(b=>{ if(!b.agent) b.agent=sysAgent; });
+  renderBottleTable();
+}
+
+// ── SUPPRESSION CHECKLIST DATA ──
+const SUPPRESSION_ITEMS = [
+  {section:"Cylinders & Agent",ref:"NFPA 2001 §7.3",items:[
+    {id:"sc1",text:"Agent cylinders — quantity, weight/pressure per design documents"},
+    {id:"sc2",text:"Agent cylinders — no damage, corrosion, or leakage"},
+    {id:"sc3",text:"Pressure gauges — reading in operable (green) range"},
+    {id:"sc4",text:"Safety pins and shipping caps — removed"},
+    {id:"sc5",text:"Cylinder brackets and restraints — secure"},
+  ]},
+  {section:"Nozzles & Piping",ref:"NFPA 2001 §7.4",items:[
+    {id:"sc6",text:"Discharge nozzles — no blockage, corrosion, or physical damage"},
+    {id:"sc7",text:"Nozzle orifice caps — in place and undamaged"},
+    {id:"sc8",text:"Piping — no mechanical damage, leakage, or missing supports"},
+    {id:"sc9",text:"Flexible hose connectors — no kinking, abrasion, or leakage"},
+    {id:"sc10",text:"Pipe hangers and supports — secure, per design layout"},
+  ]},
+  {section:"Detection & Control",ref:"NFPA 2001 §7.5",items:[
+    {id:"sc11",text:"Automatic detection — operational test, correct response"},
+    {id:"sc12",text:"Manual release stations — accessible and operational"},
+    {id:"sc13",text:"Abort / hold switch — functional (if installed)"},
+    {id:"sc14",text:"Time delay — set per design documents"},
+    {id:"sc15",text:"Control panel — no active faults or trouble signals"},
+    {id:"sc16",text:"Interface with fire alarm panel — signals verified"},
+  ]},
+  {section:"Pre-discharge Warning",ref:"NFPA 2001 §7.6",items:[
+    {id:"sc17",text:"Pre-discharge audible alarm — activates before discharge"},
+    {id:"sc18",text:"Pre-discharge visual alarm (strobe) — activates before discharge"},
+    {id:"sc19",text:"Evacuation signage — posted and legible"},
+  ]},
+  {section:"Protected Enclosure",ref:"NFPA 2001 §4.3",items:[
+    {id:"sc20",text:"Room integrity — all penetrations, seals, and openings accounted for"},
+    {id:"sc21",text:"Door closers — all doors self-closing and latching"},
+    {id:"sc22",text:"HVAC dampers — close upon system activation"},
+    {id:"sc23",text:"Room integrity test (fan door test) — results within acceptance criteria"},
+  ]},
+  {section:"Documentation",ref:"NFPA 2001 §7.7",items:[
+    {id:"sc24",text:"System placard — posted, current, and accurate"},
+    {id:"sc25",text:"Design documents and flow calculations — available on site"},
+    {id:"sc26",text:"Previous inspection/service records — available and reviewed"},
+    {id:"sc27",text:"Hydrostatic test records — current for all cylinders"},
+  ]},
+];
+
+function buildSuppressionItems(){
+  const container = document.getElementById('suppression-items'); container.innerHTML='';
+  SUPPRESSION_ITEMS.forEach(section=>{
+    container.innerHTML += `<div class="nfpa-section">${section.section}<span class="nfpa-ref">${section.ref}</span></div>`;
+    const table = document.createElement('table'); table.className='insp-table';
+    table.innerHTML=`<thead><tr><th style="width:44%">Item</th><th>Status</th><th>Notes</th></tr></thead><tbody></tbody>`;
+    const tbody = table.querySelector('tbody');
+    section.items.forEach(item=>{
+      if(!suppressionStatuses[item.id]) suppressionStatuses[item.id]='pass';
+      const tr = document.createElement('tr');
+      tr.innerHTML=`
+        <td style="font-size:12.5px;">${item.text}</td>
+        <td><select class="status-select" onchange="setSuppressionStatus('${item.id}',this.value)">
+          <option value="pass"${suppressionStatuses[item.id]==='pass'?' selected':''}>Pass</option>
+          <option value="fail"${suppressionStatuses[item.id]==='fail'?' selected':''}>Fail</option>
+          <option value="deficiency"${suppressionStatuses[item.id]==='deficiency'?' selected':''}>Deficiency</option>
+          <option value="na"${suppressionStatuses[item.id]==='na'?' selected':''}>N/A</option>
+        </select></td>
+        <td><input type="text" value="${esc(suppressionNotes[item.id]||'')}" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:4px 8px;font-size:12px;width:100%;outline:none;" placeholder="Notes..." oninput="suppressionNotes['${item.id}']=this.value"></td>`;
+      tbody.appendChild(tr);
+    });
+    container.appendChild(table);
+  });
+  updateSuppressionStats();
+}
+function setSuppressionStatus(id,val){ suppressionStatuses[id]=val; updateSuppressionStats(); }
+function updateSuppressionStats(){
+  const vals = Object.values(suppressionStatuses);
+  document.getElementById('sup-stat-pass').textContent = vals.filter(v=>v==='pass').length;
+  document.getElementById('sup-stat-fail').textContent = vals.filter(v=>v==='fail').length;
+  document.getElementById('sup-stat-def').textContent  = vals.filter(v=>v==='deficiency').length;
+  document.getElementById('sup-stat-na').textContent   = vals.filter(v=>v==='na').length;
+}
+
 // ── STATE ──
 let itemStatuses={}, itemNotes={};
 let photos=[], manualDeficiencies=[];
@@ -695,7 +924,7 @@ function _saveLogoToSettings(logoData){
 // DEVICE LIST
 // ══════════════════════════════════════════════════
 function addDeviceRow(){
-  devices.push({_id:devCounter++,devId:'',type:'Smoke Detector',location:'',floor:'',model:'',result:'pass',notes:''});
+  devices.push({_id:devCounter++,devId:'',type:'Smoke Detector',location:'',floor:'',model:'',result:'pending',notes:''});
   renderDeviceTable();
 }
 function renderDeviceTable(){
@@ -710,6 +939,7 @@ function renderDeviceTable(){
       <td><input class="device-input" value="${esc(d.devId)}" placeholder="L1-001" oninput="devices[${i}].devId=this.value" style="min-width:70px;"></td>
       <td><select class="device-status-sel" style="min-width:130px;" onchange="devices[${i}].type=this.value">${DEVICE_TYPES.map(t=>`<option${d.type===t?' selected':''}>${t}</option>`).join('')}</select></td>
       <td><input class="device-input" value="${esc(d.location)}" placeholder="Lobby..." oninput="devices[${i}].location=this.value" style="min-width:100px;"></td>
+      <td><input class="device-input" value="${esc(d.floor)}" placeholder="1" oninput="devices[${i}].floor=this.value" style="width:46px;"></td>
       <td><input class="device-input" value="${esc(d.model)}" placeholder="Make/Model" oninput="devices[${i}].model=this.value" style="min-width:100px;"></td>
       <td><select class="device-status-sel" style="min-width:80px;" onchange="devices[${i}].result=this.value">
         <option value="pending"${d.result==='pending'?' selected':''}>—</option>
@@ -744,7 +974,7 @@ function importCSV(e){
         location:cols[col('location')]||cols[col('zone')]||'',
         floor:cols[col('floor')]||'',
         model:cols[col('make_model')]||cols[col('model')]||'',
-        result:'pass',
+        result:'pending',
         notes:cols[col('notes')]||''
       });
       added++;
@@ -970,6 +1200,12 @@ function buildSummary(){
       <div class="field-group">${infoRow('AHJ / Fire Marshal',gv('ahj-name'))}${infoRow('AHJ Contact',gv('ahj-contact'))}${infoRow('Permit #',gv('permit-num'))}${infoRow('Permit Exp.',gv('permit-exp'))}</div>
       ${gv('ahj-notes')?`<div style="font-size:12px;color:var(--text2);margin-top:-4px;">${gv('ahj-notes')}</div>`:''}
     </div>`:''}
+    ${gv('sup-agent-type')?`<div class="card">
+      <div class="card-header"><div class="card-title">Clean Agent Suppression</div><div class="card-badge badge-blue">NFPA 2001</div></div>
+      <div class="field-group">${infoRow('Agent',gv('sup-agent-type'))}${infoRow('Manufacturer',gv('sup-mfr'))}${infoRow('Model',gv('sup-model'))}${infoRow('Install Year',gv('sup-install-year'))}${infoRow('Last Service',gv('sup-last-service'))}${infoRow('Protected Hazard',gv('sup-hazard'))}</div>
+      ${supBottles.length?`<div style="overflow-x:auto;margin-top:8px;"><table class="insp-table" style="font-size:11.5px;"><thead><tr><th>#</th><th>Cylinder ID</th><th>Agent</th><th>Serial #</th><th>Last Hydro</th><th>Hydro Due</th><th>Fill Wt/Pressure</th><th>Status</th></tr></thead><tbody>${supBottles.map((b,i)=>{const due=getHydroDueDate(b.agent,b.lastHydro);const dc=hydroDueColor(due);return `<tr><td style="color:var(--text3);">${i+1}</td><td>${b.label||'—'}</td><td>${b.agent||'—'}</td><td>${b.serial||'—'}</td><td>${b.lastHydro||'—'}</td><td><span style="color:${dc};font-weight:600;">${due||'—'}</span></td><td>${b.fillWt||'—'}</td><td><span class="status-pill ${b.status==='pass'?'status-pass':b.status==='fail'?'status-fail':'status-na'}">${b.status||'—'}</span></td></tr>`;}).join('')}</tbody></table></div>`:''}
+      ${gv('sup-notes')?`<div style="font-size:12px;color:var(--text2);margin-top:6px;">${gv('sup-notes')}</div>`:''}
+    </div>`:''}
     <div class="stats-row">
       <div class="stat-box stat-pass"><div class="stat-num">${passC}</div><div class="stat-lbl">Pass</div></div>
       <div class="stat-box stat-fail"><div class="stat-num">${failC}</div><div class="stat-lbl">Fail</div></div>
@@ -1036,6 +1272,30 @@ function buildPrintDoc(qrDataURL){
   devices.forEach((d,i)=>{
     const rc=d.result==='pass'?'c-pass':d.result==='fail'?'c-fail':'c-na';
     devRows+=`<tr><td style="color:#888;text-align:center;">${i+1}</td><td>${d.devId||'—'}</td><td>${d.type}</td><td>${d.location||'—'}</td><td style="text-align:center;">${d.floor||'—'}</td><td>${d.model||'—'}</td><td class="${rc}">${(d.result||'—').toUpperCase()}</td><td style="color:#555;">${d.notes||''}</td></tr>`;
+  });
+
+  // Suppression checklist rows
+  let supChkRows='';
+  const hasSup = gv('sup-agent-type') || supBottles.length || Object.keys(suppressionStatuses).length>0;
+  if(hasSup){
+    SUPPRESSION_ITEMS.forEach(sec=>{
+      supChkRows+=`<tr class="pd-chk-section"><td colspan="3" style="border:1px solid #ddd;">${sec.section} — ${sec.ref}</td></tr>`;
+      sec.items.forEach(item=>{
+        const s=suppressionStatuses[item.id]||'pass';
+        const sl=s==='pass'?'PASS':s==='fail'?'FAIL':s==='deficiency'?'DEFICIENCY':'N/A';
+        const sc=s==='pass'?'c-pass':s==='fail'?'c-fail':s==='deficiency'?'c-def':'c-na';
+        supChkRows+=`<tr><td style="padding-left:12px;border:1px solid #ddd;">${item.text}</td><td class="${sc}" style="border:1px solid #ddd;white-space:nowrap;">${sl}</td><td style="color:#555;border:1px solid #ddd;">${suppressionNotes[item.id]||''}</td></tr>`;
+      });
+    });
+  }
+
+  // Suppression bottle rows
+  let bottleRows='';
+  supBottles.forEach((b,i)=>{
+    const due=getHydroDueDate(b.agent,b.lastHydro);
+    const overdue=due&&new Date(due+'T00:00:00')<new Date();
+    const rc=b.status==='pass'?'c-pass':b.status==='fail'?'c-fail':'c-na';
+    bottleRows+=`<tr><td style="color:#888;text-align:center;">${i+1}</td><td>${b.label||'—'}</td><td>${b.agent||'—'}</td><td>${b.serial||'—'}</td><td>${b.lastHydro||'—'}</td><td class="${overdue?'c-fail':''}" style="${overdue?'font-weight:600;':''}">${due||'—'}${overdue?' ⚠️':''}</td><td>${b.fillWt||'—'}</td><td class="${rc}">${(b.status||'—').toUpperCase()}</td></tr>`;
   });
 
   // Photo page
@@ -1122,6 +1382,19 @@ function buildPrintDoc(qrDataURL){
     ${gv('ahj-notes')?`<div style="margin-top:4px;">${pdLbl('AHJ Notes',gv('ahj-notes'))}</div>`:''}
   </div>`:''}
 
+  ${hasSup?`<div class="pd-card">
+    <div class="pd-section-title">Clean Agent Suppression System</div>
+    <div class="pd-3col">
+      ${pdLbl('Agent Type',gv('sup-agent-type'))}
+      ${pdLbl('Manufacturer',gv('sup-mfr'))}
+      ${pdLbl('Model',gv('sup-model'))}
+      ${pdLbl('Install Year',gv('sup-install-year'))}
+      ${pdLbl('Last Service',gv('sup-last-service'))}
+      ${pdLbl('Protected Hazard',gv('sup-hazard'))}
+    </div>
+    ${gv('sup-notes')?`<div style="margin-top:4px;">${pdLbl('Notes',gv('sup-notes'))}</div>`:''}
+  </div>`:''}
+
   <div class="pd-stat-row">
     <div class="pd-stat-box"><div class="pd-stat-num" style="color:#1a7a4a;">${passC}</div><div class="pd-stat-lbl">Pass</div></div>
     <div class="pd-stat-box"><div class="pd-stat-num" style="color:#c0281f;">${failC}</div><div class="pd-stat-lbl">Fail</div></div>
@@ -1160,6 +1433,32 @@ function buildPrintDoc(qrDataURL){
     <thead><tr><th style="width:54%;">Inspection Item</th><th style="width:13%;">Result</th><th>Notes</th></tr></thead>
     <tbody>${chkRows}</tbody>
   </table>
+
+  ${hasSup?`
+  <!-- PAGE 3: SUPPRESSION -->
+  <div class="pd-page-break"></div>
+  ${companyLogoData?`<div style="text-align:center;margin-bottom:10px;"><img src="${companyLogoData}" style="max-height:60px;max-width:220px;object-fit:contain;display:inline-block;" alt="Company Logo"></div>`:''}
+  <div class="pd-header">
+    <div><div class="pd-header-brand">${gv('company')||'NFPA 72 Inspection Report'}</div><div style="font-size:8pt;color:#666;">Clean Agent Suppression — NFPA 2001</div></div>
+    <div class="pd-header-sub">${gv('customer-name')||''} · ${gv('insp-date')||''}<br>Agent: ${gv('sup-agent-type')||'—'} · ${gv('sup-hazard')||''}</div>
+  </div>
+  ${supBottles.length?`
+  <div class="pd-section-title">Cylinder Inventory (${supBottles.length})</div>
+  <table>
+    <thead><tr>
+      <th class="pd-dev-th" style="width:24px;text-align:center;">#</th>
+      <th class="pd-dev-th">Cylinder ID</th><th class="pd-dev-th">Agent</th>
+      <th class="pd-dev-th">Serial #</th><th class="pd-dev-th">Last Hydro</th>
+      <th class="pd-dev-th">Hydro Due</th><th class="pd-dev-th">Fill Wt / Pressure</th>
+      <th class="pd-dev-th">Status</th>
+    </tr></thead>
+    <tbody>${bottleRows}</tbody>
+  </table>`:''}
+  <div class="pd-section-title" style="margin-top:12px;">Inspection Checklist</div>
+  <table>
+    <thead><tr><th style="width:54%;">Inspection Item</th><th style="width:13%;">Result</th><th>Notes</th></tr></thead>
+    <tbody>${supChkRows}</tbody>
+  </table>`:''}
 
   ${devices.length?`
   <!-- PAGE 3: DEVICE LIST -->
@@ -1515,7 +1814,8 @@ const ALL_FIELDS = [
   'monitoring-co','monitoring-acct','panel-location','bat-make','bat-ah','bat-date',
   'insp-name','cert-num','company','license','company-addr',
   'final-result','insp-comments','corrections','reinspection','ahj-notify',
-  'cust-sig-name','cust-sig-title','insp-sig-name','insp-sig-date'
+  'cust-sig-name','cust-sig-title','insp-sig-name','insp-sig-date',
+  'sup-agent-type','sup-mfr','sup-model','sup-install-year','sup-last-service','sup-hazard','sup-notes'
 ];
 
 // ══════════════════════════════════════════════════
@@ -1688,7 +1988,8 @@ async function doSaveToDrive(){
     const filename = `${facility} — ${date}.fireguard`;
     const fv={}; ALL_FIELDS.forEach(f=>{ const el=document.getElementById(f); if(el) fv[f]=el.value; });
     const snapshot = JSON.stringify({ _version:2, _app:'FireGuard Pro', _savedAt:new Date().toISOString(),
-      fv, itemStatuses, itemNotes, manualDeficiencies, photos, devices, custSigData, inspSigData, companyLogoData });
+      fv, itemStatuses, itemNotes, suppressionStatuses, suppressionNotes, supBottles,
+      manualDeficiencies, photos, devices, custSigData, inspSigData, companyLogoData });
     setDriveStatus('⏳',`Saving "${filename}"…`);
     const existing = await driveSearchFile(filename, folderId);
     if(existing) await driveUpdateFile(existing, snapshot);
@@ -1726,7 +2027,10 @@ async function doLoadFromDrive(){
 }
 
 function clearAllState(){
-  itemStatuses={}; itemNotes={}; photos=[]; manualDeficiencies=[];
+  itemStatuses={}; itemNotes={};
+  suppressionStatuses={}; suppressionNotes={};
+  supBottles=[]; supBottleCounter=1;
+  photos=[]; manualDeficiencies=[];
   custSigData=null; inspSigData=null; companyLogoData=null;
   devices=[]; devCounter=1;
   ['sig-canvas','insp-sig-canvas'].forEach(id=>{
@@ -1749,6 +2053,8 @@ async function driveOpenFile(fileId, filename){
     clearAllState();
     if(d.fv) Object.entries(d.fv).forEach(([k,v])=>{ const el=document.getElementById(k); if(el) el.value=v; });
     itemStatuses=d.itemStatuses||{}; itemNotes=d.itemNotes||{};
+    suppressionStatuses=d.suppressionStatuses||{}; suppressionNotes=d.suppressionNotes||{};
+    supBottles=(d.supBottles||[]).map(x=>({...x,_id:supBottleCounter++}));
     manualDeficiencies=d.manualDeficiencies||[]; photos=d.photos||[];
     devices=(d.devices||[]).map(x=>({...x,_id:devCounter++}));
     custSigData=d.custSigData||null; inspSigData=d.inspSigData||null;
@@ -1761,7 +2067,7 @@ async function driveOpenFile(fileId, filename){
       if(pw)  pw.classList.remove('hidden');
       if(dz)  dz.style.display='none';
     }
-    buildInspectionItems(); renderPhotos(); renderDeviceTable();
+    buildInspectionItems(); buildSuppressionItems(); renderBottleTable(); renderPhotos(); renderDeviceTable();
     closeDriveModal(); switchTab('info');
     showToast(`"${filename.replace('.fireguard','')}" loaded ✓`);
   }catch(e){
@@ -1821,8 +2127,8 @@ function exportReport(){
   ALL_FIELDS.forEach(f=>{ const el=document.getElementById(f); if(el) fv[f]=el.value; });
   const snapshot=JSON.stringify({
     _version:2, _app:'FireGuard Pro', _savedAt:new Date().toISOString(),
-    fv, itemStatuses, itemNotes, manualDeficiencies, photos, devices,
-    custSigData, inspSigData, companyLogoData
+    fv, itemStatuses, itemNotes, suppressionStatuses, suppressionNotes, supBottles,
+    manualDeficiencies, photos, devices, custSigData, inspSigData, companyLogoData
   });
   const facility=(gv('customer-name')||'Report').replace(/[^a-zA-Z0-9\s\-]/g,'').trim();
   const date=gv('insp-date')||new Date().toISOString().split('T')[0];
@@ -1853,6 +2159,8 @@ function importReport(event){
       ALL_FIELDS.forEach(f=>{ const el=document.getElementById(f); if(el) el.value=''; });
       if(d.fv) Object.entries(d.fv).forEach(([k,v])=>{ const el=document.getElementById(k); if(el) el.value=v; });
       itemStatuses=d.itemStatuses||{}; itemNotes=d.itemNotes||{};
+      suppressionStatuses=d.suppressionStatuses||{}; suppressionNotes=d.suppressionNotes||{};
+      supBottles=(d.supBottles||[]).map(x=>({...x,_id:supBottleCounter++}));
       manualDeficiencies=d.manualDeficiencies||[]; photos=d.photos||[];
       devices=(d.devices||[]).map(x=>({...x,_id:devCounter++}));
       custSigData=d.custSigData||null; inspSigData=d.inspSigData||null;
@@ -1865,7 +2173,7 @@ function importReport(event){
         if(pw)  pw.classList.remove('hidden');
         if(dz)  dz.style.display='none';
       }
-      buildInspectionItems(); renderPhotos(); renderDeviceTable();
+      buildInspectionItems(); buildSuppressionItems(); renderBottleTable(); renderPhotos(); renderDeviceTable();
       switchTab('info');
       showToast(`"${file.name.replace('.fireguard','')}" imported ✓`);
     }catch(e){
@@ -1891,6 +2199,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('insp-time').value=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   document.getElementById('report-num').value='FG-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*999)+1).padStart(3,'0');
   buildInspectionItems();
+  buildSuppressionItems();
+  renderBottleTable();
   loadReport();
   applySettingsOnLoad();
   setTimeout(()=>{setupCanvas('sig-canvas');setupCanvas('insp-sig-canvas');},150);
